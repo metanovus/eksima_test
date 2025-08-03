@@ -1,0 +1,7 @@
+zeep==4.3.1
+beautifulsoup4==4.13.4
+celery[redis]==5.5.3
+requests==2.32.4
+tenacity==9.1.2
+fastapi==0.116.1
+uvicorn==0.35.0
