@@ -12,8 +12,6 @@ venv/
 .vscode/
 .idea/
 
-tenders.csv
-
 *.swp
 *.swo
 *.tmp
