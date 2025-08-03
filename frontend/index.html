@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Rostender Parser UI</title>
+</head>
+<body style="font-family: monospace">
+  <h2>Rostender Parser UI</h2>
+  <div>
+    <h3>Запрос тендеров</h3>
+    <button id="load-tenders">Загрузить тендеры (из файла tenders.csv)</button>
+    <div id="tenders"></div>
+  </div>
+  <hr>
+  <div>
+    <h3>Запустить парсинг (введите число тендеров для парсинга)</h3>
+    <input type="number" id="max" value="10" min="1" max="100"/>
+    <button id="start-parse">Старт</button>
+    <p id="parse-result"></p>
+  </div>
+  <hr>
+  <div>
+    <h3>Проверить статус выполнения задачи</h3>
+    <input type="text" id="task-id" placeholder="Task ID"/>
+    <button id="get-status">Проверить</button>
+    <pre id="status-result"></pre>
+  </div>
+<script>
+const API = "http://localhost:8000";
+
+let pollingInterval = null;
+
+document.getElementById('load-tenders').onclick = async () => {
+    let d = document.getElementById('tenders');
+    d.textContent = "Загрузка...";
+    const r = await fetch(`${API}/tenders/`);
+    if (!r.ok) { d.textContent = "Ошибка!"; return; }
+    const js = await r.json();
+    if (!js.length) { d.textContent = "Нет данных."; return; }
+    let table = "<table border='1'><tr>";
+    for (const k of Object.keys(js[0])) table += `<th>${k}</th>`;
+    table += "</tr>";
+    for (const row of js) {
+        table += "<tr>";
+        for (const v of Object.values(row)) table += `<td>${v}</td>`;
+        table += "</tr>";
+    }
+    table += "</table>";
+    d.innerHTML = table;
+};
+
+document.getElementById('start-parse').onclick = async () => {
+    const maxInput = document.getElementById('max');
+    let max = parseInt(maxInput.value, 10);
+    if (isNaN(max) || max < 1) {
+        alert("Введите значение не меньше 1");
+        maxInput.focus();
+        return;
+    }
+    const parseResultElem = document.getElementById('parse-result');
+    parseResultElem.textContent = "Запуск...";
+    const r = await fetch(`${API}/parse/?max=${max}`, {method:"POST"});
+    if (!r.ok) {
+        parseResultElem.textContent = "Ошибка запуска парсинга!";
+        return;
+    }
+    const js = await r.json();
+    parseResultElem.textContent = "Задача стартовала, task_id: " + js.task_id;
+    document.getElementById('task-id').value = js.task_id;
+    startPollingStatus(js.task_id);
+};
+
+document.getElementById('get-status').onclick = async () => {
+    const taskId = document.getElementById('task-id').value.trim();
+    if (!taskId) return alert("Введите Task ID!");
+    await fetchAndDisplayStatus(taskId);
+};
+
+async function fetchAndDisplayStatus(taskId) {
+    const statusResult = document.getElementById('status-result');
+    statusResult.textContent = "Загрузка статуса...";
+    try {
+        const r = await fetch(`${API}/status/${taskId}`);
+        if (!r.ok) {
+            statusResult.textContent = `Ошибка при получении статуса: ${r.status}`;
+            return;
+        }
+        const data = await r.json();
+        let text = `Status: ${data.status}\n`;
+        if (data.result) {
+            if (typeof data.result === "string") {
+                text += `Result:\n${data.result}`;
+            } else {
+                text += "Result:\n" + JSON.stringify(data.result, null, 2);
+            }
+        } else {
+            text += "Result отсутствует";
+        }
+        statusResult.textContent = text;
+        if (["SUCCESS", "FAILURE", "REVOKED"].includes(data.status)) {
+            stopPollingStatus();
+            document.getElementById('parse-result').textContent += " (Задача завершена)";
+        }
+    } catch (e) {
+        statusResult.textContent = "Ошибка при запросе статуса: " + e.message;
+        stopPollingStatus();
+    }
+}
+
+function startPollingStatus(taskId) {
+    stopPollingStatus();
+    fetchAndDisplayStatus(taskId);
+    pollingInterval = setInterval(() => {
+        fetchAndDisplayStatus(taskId);
+    }, 3000);
+}
+
+function stopPollingStatus() {
+    if (pollingInterval) {
+        clearInterval(pollingInterval);
+        pollingInterval = null;
+    }
+}
+</script>
+</body>
+</html>

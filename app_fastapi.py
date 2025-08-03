@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse, HTMLResponse
 from tasks import parse_tenders_task
 from celery.result import AsyncResult
 import csv
@@ -8,6 +9,7 @@ from logging_conf import logger
 from typing import List, Dict, Any
 
 app = FastAPI()
+app.mount("/static", StaticFiles(directory="frontend"), name="static")
 
 CSV_FILE_PATH: str = "tenders.csv"
 
@@ -28,6 +30,11 @@ def read_csv_to_json(csv_path: str) -> List[Dict[str, Any]]:
         data = list(reader)
     logger.info(f"Успешно считаны данные из файла {csv_path}")
     return data
+
+@app.get("/", response_class=HTMLResponse)
+async def serve_index():
+    with open("frontend/index.html", "r", encoding="utf-8") as f:
+        return f.read()
 
 @app.get("/tenders/")
 async def get_tenders() -> JSONResponse:
