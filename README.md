@@ -1,5 +1,9 @@
 # Rostender Tenders Parser
 
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/d524d613-5d9f-49af-90e1-b60af05d5fd4" alt="Пример работы сервиса" width="700"/>
+</p>
+
 Парсер тендеров с сайта rostender.info с асинхронной обработкой задач через Celery и веб-интерфейсом на FastAPI.
 
 ## Описание
